@@ -481,6 +481,18 @@ func (dbf *DBF) readFPT(blockdata []byte) ([]byte, bool, error) {
 
 	// Determine the block number
 	block := binary.LittleEndian.Uint32(blockdata)
+	if dbf.header.FileVersion == 0xF5 {
+		bs := strings.TrimSpace(string(blockdata))
+		if len(bs) > 0 {
+			b, err := strconv.ParseUint(bs, 10, 32)
+			if err != nil {
+				return nil, false, err
+			}
+			block = uint32(b)
+		} else {
+			return nil, true, nil
+		}
+	}
 	// The position in the file is blocknumber*blocksize
 	if _, err := dbf.fptr.Seek(int64(dbf.fptheader.BlockSize)*int64(block), 0); err != nil {
 		return nil, false, err
@@ -613,7 +625,7 @@ func OpenFile(filename string, dec Decoder) (*DBF, error) {
 	// Check if there is an FPT according to the header
 	// If there is we will try to open it in the same dir (using the same filename and case)
 	// If the FPT file does not exist an error is returned
-	if (dbf.header.TableFlags & 0x02) != 0 {
+	if (dbf.header.TableFlags & 0x02) != 0 || (dbf.header.FileVersion == 0xF5) {
 		ext := filepath.Ext(filename)
 		fptext := ".fpt"
 		if strings.ToUpper(ext) == ext {
